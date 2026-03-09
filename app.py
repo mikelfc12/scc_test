@@ -1,27 +1,53 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
+import requests
+import base64
 
-data_test = pd.read_csv("test_data_conn.csv")
+REPO = "mikelfc12/scc_test"
+FILE_PATH = "test_data_conn.csv"
+BRANCH = "main"
 
-st.title("Streamlit Deployment Test")
+TOKEN = st.secrets["GITHUB_TOKEN"]
 
-st.write("If you can see this, your GitHub → Streamlit Cloud connection works!")
+st.title("CSV Data Entry")
 
-# simple slider
-number = st.slider("Pick a number", 0, 100, 25)
+# GitHub file URL
+url = f"https://api.github.com/repos/{REPO}/contents/{FILE_PATH}"
 
-st.write("You selected:", number)
+headers = {
+    "Authorization": f"token {TOKEN}"
+}
 
-# generate dummy data
-data = pd.DataFrame(
-    np.random.randn(20, 3),
-    columns=["A", "B", "C"]
-)
+# Get existing file
+response = requests.get(url, headers=headers).json()
 
-st.line_chart(data)
+content = base64.b64decode(response["content"]).decode("utf-8")
 
-# button
-if st.button("Click me"):
-    st.success("Button works! 🎉")
-    st.dataframe(data_test)
+df = pd.read_csv(pd.io.common.StringIO(content))
+
+st.subheader("Current Data")
+st.dataframe(df)
+
+# User input
+code = st.number_input("Code", step=1)
+text = st.text_input("Text")
+
+if st.button("Add Row"):
+
+    df.loc[len(df)] = [code, text]
+
+    new_content = df.to_csv(index=False)
+
+    encoded = base64.b64encode(new_content.encode()).decode()
+
+    data = {
+        "message": "update csv via streamlit",
+        "content": encoded,
+        "sha": response["sha"],
+        "branch": BRANCH
+    }
+
+    r = requests.put(url, headers=headers, json=data)
+
+    if r.status_code == 200:
+        st.success("Row added and saved to GitHub!")
