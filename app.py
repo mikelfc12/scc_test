@@ -9,6 +9,8 @@ BRANCH = "main"
 
 TOKEN = st.secrets["GITHUB_TOKEN"]
 
+st.set_page_config(page_title="md_test_host")
+
 st.title("CSV Data Entry")
 
 # GitHub file URL
